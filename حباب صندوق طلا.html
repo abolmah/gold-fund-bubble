@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+  <meta charset="UTF-8" />
+  <title>حباب صندوق‌های طلا</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: sans-serif; direction: rtl; padding: 20px; background: #f5f5f5; }
+    canvas { max-width: 1000px; margin: auto; display: block; background: white; border-radius: 10px; padding: 20px; }
+    h2 { text-align: center; }
+  </style>
+</head>
+<body>
+  <h2>حباب قیمتی صندوق‌های طلا در بورس ایران</h2>
+  <canvas id="bubbleChart"></canvas>
+
+  <script>
+    const goldSymbols = [
+      "کهربا", "جواهر", "مثقال", "عیار", "ناب",
+      "آلتون", "تابش", "گوهر", "نفیس", "زرفام",
+      "لوتوس", "زر", "گنج", "طلا", "آتش",
+      "امرالد", "درخشان", "زروان", "زمرد", "قیراط", "گلدیس"
+    ];
+
+    async function fetchData() {
+      const url = "https://BrsApi.ir/Api/Tsetmc/Nav.php?key=Freev0THDPUpJsJXq4tJfRipOTZp9iPt";
+      const res = await fetch(url);
+      const data = await res.json();
+      const filtered = data.filter(item => goldSymbols.includes(item.l18));
+      return filtered.map(item => {
+        const lastPrice = Number(item.pl);
+        const nav = Number(item.predtran);
+        const bubble = ((lastPrice - nav) / nav * 100).toFixed(2);
+        const volume = item.tvol ? Number(item.tvol.toString().replace(/,/g, '')) : 0;
+        return {
+          name: item.l18,
+          lastPrice,
+          nav,
+          volume,
+          bubble
+        };
+      });
+    }
+
+    function drawChart(data) {
+      const ctx = document.getElementById('bubbleChart').getContext('2d');
+      const sorted = data.sort((a, b) => b.bubble - a.bubble);
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: sorted.map(d => d.name),
+          datasets: [{
+            label: 'درصد حباب قیمتی (%)',
+            data: sorted.map(d => d.bubble),
+            backgroundColor: sorted.map(d => d.bubble >= 0 ? 'rgba(255,99,132,0.7)' : 'rgba(54,162,235,0.7)'),
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            tooltip: {
+              callbacks: {
+                afterLabel: function(ctx) {
+                  const item = sorted[ctx.dataIndex];
+                  return [
+                    `NAV ابطال: ${item.nav.toLocaleString()}`,
+                    `آخرین قیمت: ${item.lastPrice.toLocaleString()}`,
+                    `حجم معاملات: ${item.volume.toLocaleString()}`
+                  ];
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: 'درصد حباب'
+              }
+            }
+          }
+        }
+      });
+    }
+
+    fetchData().then(drawChart).catch(err => alert("خطا در دریافت داده‌ها"));
+  </script>
+</body>
+</html>
